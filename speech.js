@@ -47,7 +47,7 @@ Speech.prototype = {
 		function() {
 			console.log("Error: No callback specified");
 		};
-		if (config.method !== "GET" && config.method !== "POST" && config.method !== "HEAD") {
+		if (!(/(GET|POST|HEAD)/i.test(config.method))) {
 			config.method = "GET";
 		}
 		var xhr = new XMLHttpRequest();
@@ -89,16 +89,50 @@ Speech.prototype = {
 			callback: function(data) {
 				var FacebookData = [];
 				if ( !! data.data) {
-					data.data.forEach(function(entry, i) {
+					data.data.forEach(function(self, i) {
 						FacebookData[i] = {};
-						switch (entry.type) {
+						if(!!self.likes){
+							var list = [];
+							self.likes.data.forEach(function(self){
+								list.push(self.name);
+							});
+							FacebookData[i].likes = {
+								count:self.likes.count,
+								users:list
+							};
+						}
+						if(!!self.shares){
+							FacebookData[i].shares = self.shares.count;
+						}
+						if(!!self.story){
+							FacebookData[i].story = self.story;
+						}
+						FacebookData[i].user = self.from.name;
+						switch (self.type) {
 						case "status":
+							FacebookData[i].type = "status";
+							FacebookData[i].text = self.message;
 							break;
 						case "photo":
+							FacebookData[i].type = "photo";
+							FacebookData[i].url = self.picture;
+							FacebookData[i].link = self.link;
+							FacebookData[i].caption = self.caption;
 							break;
 						case "link":
+							FacebookData[i].type = "link";
 							break;
 						case "video":
+							FacebookData[i].type = "video";
+
+							FacebookData[i].video = {
+								name:self.name,
+								description:self.description,
+								thumbnail:self.picture,
+								link:self.link,
+								url:self.source,
+								youtube:(new RegExp("\\/www\\.youtube\\.com\\/watch").test(self.source))?true:false
+							};
 							break;
 						}
 					});
