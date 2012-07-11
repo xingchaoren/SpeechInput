@@ -1,16 +1,4 @@
-var API = new Speech({
-	target:"input[type='speech']",
-	callback:function(input){
-		console.log(input);
-		API.facebook({
-			query:input,
-			max:10,
-			callback:function(data){
-				console.log(data);
-			}
-		});
-	},
-	error:function(error){
-		alert("Error:" + error + "!!");
-	}
+var speech = new Speech();
+speech.on('speech',function(data){
+	console.log(data);
 });

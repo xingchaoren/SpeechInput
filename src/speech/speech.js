@@ -1,37 +1,48 @@
-var Speech = function(config) {
-		config.target = config.target || "input[type=speech]";
-		var input = document.querySelectorAll(config.target);
-		for (var i = input.length - 1; i >= 0; i--) {
-			if ("webkitSpeech" in input[i]) {
-				input[i].webkitSpeech = "true";
-				Speech.prototype.event(input[i], config.callback);
+var Speech = function(options) {
+		var input = (typeof(options) !== 'undefined')? options.target:"input[type=speech]";
+		this.target = document.querySelectorAll(input);
+		for (var i = this.target.length - 1; i >= 0; i--) {
+			if ("webkitSpeech" in this.target[i]) {
+				this.target[i].webkitSpeech = "true";
 			} else {
 				Speech.prototype.error(0);
 				break;
 			}
 		}
-		Speech.prototype.onerror = config.error ||
-		function(error) {
-			console.log("Error:" + error);
+		this.onerror = function(type) {
+			throw new Error(type);
 		};
-		if (config.nav === true) {
+
+		/*if (options.nav === true) {
 			Speech.prototype.nav();
-		}
+		}*/
 	};
 Speech.prototype = {
+	on:function(type,callback){
+		switch(type){
+			case 'speech':
+				for (var i = 0; i < this.target.length; i++) {
+					Speech.prototype.event(this.target[i],callback);
+				};
+				break;
+			case 'error':
+				this.onerror = callback(type);
+				break;
+		}
+	},
 	error: function(error) {
 		switch (error) {
 		case 0:
-			Speech.prototype.onerror("Your Browser does no support Speech Input");
+			this.onerror("Your Browser does no support Speech Input");
 			break;
 		case 1:
-			Speech.prototype.onerror("No results available");
+			this.onerror("No results available");
 			break;
 		case 2:
-			Speech.prototype.onerror("Ajax Error");
+			this.onerror("Ajax Error");
 			break;
 		case 3:
-			Speech.prototype.onerror("No Search Query");
+			this.onerror("No Search Query");
 		}
 	},
 	event: function(target, callback) {
@@ -203,12 +214,3 @@ Speech.prototype.ajax.parse = function(data) {
 	return JSON.parse(data);
 
 };
-
-/*
-TODO:
-	- Add WolframAlpha support
-	- Add Facebook support
-	- Add Vimeo support
-	- Finish Error Handler
-	- Create options object for API Keys
-*/
