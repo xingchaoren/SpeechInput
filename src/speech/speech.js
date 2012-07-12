@@ -176,20 +176,28 @@ Speech.prototype = {
 				if ( !! data.feed.entry) {
 					data.feed.entry.forEach(function(entry, i) {
 						YoutubeData[i] = {};
-						YoutubeData[i].title = entry.media$group.media$title.$t;
-						YoutubeData[i].description = entry.media$group.media$description.$t;
-						YoutubeData[i].author = entry.author[0].name.$t;
-						YoutubeData[i].url = entry.media$group.media$content[0].url;
+						var properties = ['title','description','author','url','category','rating','viewCount'];
+						var link = ['media$group.media$title.$t','media$group.media$description.$t','author[0].name.$t','media$group.media$content[0].url','media$group.media$category[0].$t','gd$rating.average','yt$statistics.viewCount']
+						for (var x = 0; x < properties.length; x++){
+							try {
+								YoutubeData[i][properties[x]] = eval('entry.' + link[x]);
+							} catch(e){
+								delete YoutubeData[i][properties[x]];
+								continue;
+							}
+						};
 						YoutubeData[i].thumbnail = (function(){
 							var array = [];
-							entry.media$group.media$thumbnail.forEach(function(self,i){
-								array[i] = self.url
-							});
-							return array;
+							if("media$group" in entry && typeof(entry.media$group.media$thumbnail) !== 'undefined'){
+								entry.media$group.media$thumbnail.forEach(function(self,i){
+									array[i] = self.url
+								});
+								return array;
+							} else {
+								delete YoutubeData[i].thumbnail;
+								return;
+							}
 						})();
-						YoutubeData[i].category = entry.media$group.media$category[0].$t;
-						YoutubeData[i].rating = entry.gd$rating.average;
-						YoutubeData[i].viewCount = entry.yt$statistics.viewCount;
 					});
 
 					options.callback(YoutubeData);

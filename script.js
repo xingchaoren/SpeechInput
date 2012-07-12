@@ -4,8 +4,8 @@ speech.on('speech',function(input){
 		query:input,
 		max:10,
 		callback:function(result){
-			console.log(result[0])
+			console.log(result);
 		}	
 	});
-	console.log(data);
+	console.log(input);
 });
