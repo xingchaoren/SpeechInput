@@ -1,6 +1,6 @@
-var Speech = function(options) {
-		var input = (typeof(options) !== 'undefined')? options.target:"input[type=speech]";
-		this.target = document.querySelectorAll(input);
+var Speech = function(target) {
+		var input = target || "input[type=speech]";
+		this.target = Array.prototype.slice.call(document.querySelectorAll(input),0);
 		for (var i = this.target.length - 1; i >= 0; i--) {
 			if ("webkitSpeech" in this.target[i]) {
 				this.target[i].webkitSpeech = "true";
@@ -21,34 +21,41 @@ Speech.prototype = {
 	on:function(type,callback){
 		switch(type){
 			case 'speech':
+				var self = this;
 				for (var i = 0; i < this.target.length; i++) {
-					Speech.prototype.event(this.target[i],callback);
+					self.event(this.target[i],callback,self);
 				};
 				break;
 			case 'error':
-				this.onerror = callback(type);
+				this.onerror = callback(type,code);
 				break;
 		}
 	},
-	error: function(error) {
+	error: function(error,code) {
 		switch (error) {
 		case 0:
-			this.onerror("Your Browser does no support Speech Input");
+			this.onerror("Your Browser does no support Speech Input",code);
 			break;
 		case 1:
-			this.onerror("No results available");
+			this.onerror("No results available",code);
 			break;
 		case 2:
-			this.onerror("Ajax Error");
+			this.onerror("Ajax Error",code);
 			break;
 		case 3:
-			this.onerror("No Search Query");
+			this.onerror("No Search Query",code);
+			break;
+		case 4:
+			this.onerror("Geolocation API is not supported",code);
+			break;
+		case 5:
+			this.onerror("User denied acces to Location",code); 
 		}
 	},
-	event: function(target, callback) {
+	event: function(target,callback,self) {
 		target.onwebkitspeechchange = function() {
 			target.dataset.speech = target.value;
-			callback(target.value);
+			callback.call(self,target.value);
 			target.value = "";
 			target.blur();
 		};
@@ -78,14 +85,15 @@ Speech.prototype = {
 		xhr.send();
 	},
 	nav: function() {
-		if (navigator.geolocation) {
+		if ('geolocation' in window.navigator){
 			navigator.geolocation.getCurrentPosition(function(position) {
-				Speech.prototype.geo = (position.coords.latitude.toString() + "," + position.coords.longitude.toString());
+				this.geo = (position.coords.latitude.toString() + "," + position.coords.longitude.toString());
 			}, function(error) {
-				Speech.prototype.geo = null;
+				this.geo = null;
 			});
 		} else {
 			Speech.prototype.geo = null;
+			this.error(4);
 		}
 		return Speech.prototype.geo;
 	},
@@ -154,13 +162,14 @@ Speech.prototype = {
 			}
 		});
 	},
-	youtube: function(config) {
-		if (!config.query) {
+	youtube: function(options) {
+		var options = options || {};
+		if (!'query' in options) {
 			this.error(3);
 			return;
 		}
 		this.ajax({
-			url: "https://gdata.youtube.com/feeds/api/videos?alt=json&q=" + config.query + "&max-results=" + ((config.max).toString() || (10).toString()),
+			url: "https://gdata.youtube.com/feeds/api/videos?alt=json&q=" + options.query + "&max-results=" + ((options.max).toString() || (10).toString()),
 			method: "GET",
 			callback: function(data) {
 				var YoutubeData = [];
@@ -171,15 +180,19 @@ Speech.prototype = {
 						YoutubeData[i].description = entry.media$group.media$description.$t;
 						YoutubeData[i].author = entry.author[0].name.$t;
 						YoutubeData[i].url = entry.media$group.media$content[0].url;
-						YoutubeData[i].thumbnail = [
-						entry.media$group.media$thumbnail[1].url, entry.media$group.media$thumbnail[2].url, entry.media$group.media$thumbnail[3].url];
+						YoutubeData[i].thumbnail = (function(){
+							var array = [];
+							entry.media$group.media$thumbnail.forEach(function(self,i){
+								array[i] = self.url
+							});
+							return array;
+						})();
 						YoutubeData[i].category = entry.media$group.media$category[0].$t;
 						YoutubeData[i].rating = entry.gd$rating.average;
 						YoutubeData[i].viewCount = entry.yt$statistics.viewCount;
-
 					});
 
-					config.callback(YoutubeData);
+					options.callback(YoutubeData);
 				} else {
 					Speech.prototype.error(1);
 				}
