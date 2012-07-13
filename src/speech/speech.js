@@ -106,11 +106,13 @@ Speech.prototype = {
 		script.src = url;  
 		head.appendChild(script);
 	},
-	nav: function() {
+	nav: function(callback) {
 		var self = this;
+		callback = callback || function(){}; 
 		if ('geolocation' in window.navigator){
 			navigator.geolocation.getCurrentPosition(function(position) {
 				self.geo = (position.coords.latitude.toString() + "," + position.coords.longitude.toString());
+				callback.call(self,self.geo);
 			}, function(error) {
 				self.geo = null;
 				self.error(5);
@@ -253,8 +255,24 @@ Speech.prototype = {
 		this.twitter.callback = options.callback || function(){
 			this.error(6);
 		};
-		var url = "http://search.twitter.com/search.json?include_entities=true&rpp=" + ((options.max).toString() || (10).toString()) + "&q=" + options.query + (!!(this.geo && options.nav) ? "&geocode=" + this.geo + "," + options.radius || "2km" : "");
-		this.jsonp(url,function(data){
+		var url = "http://search.twitter.com/search.json?include_entities=true&rpp=" + ((options.max).toString() || (10).toString()) + "&q=" + options.query + (!!(this.geo && options.nav) ? "&geocode=" + this.geo + "," + (options.radius || "2km") : "");
+		this.jsonp(url,function(result){
+			var data = [];
+			result.results.forEach(function(self,i){
+				data[i] = {};
+				var properties = ['text','profile_image_url','from_user','from_user_name','geo','to_user','entities'];
+				for (var x = 0; x < properties.length; x++){
+					try {
+						if(!!self[properties[x]].toString()){
+							data[i][properties[x]] = self[properties[x]];
+						}
+					} catch(e){
+						delete data[i][properties[x]];
+						continue;
+					}
+				}
+			});
+
 			this.twitter.callback.call(this,data);
 		});
 	},
