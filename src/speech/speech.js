@@ -50,6 +50,10 @@ Speech.prototype = {
 			break;
 		case 5:
 			this.onerror("User denied acces to Location",code); 
+			break;
+		case 6:
+			this.onerror("No callback specified for JSONP",code);
+			break;
 		}
 	},
 	event: function(target,callback,self) {
@@ -83,6 +87,24 @@ Speech.prototype = {
 		};
 
 		xhr.send();
+	},
+	jsonp:function(url,callback){
+		var id = this.randomString(10);
+		var head = document.getElementsByTagName("head")[0];  
+		var script = document.createElement("script");
+		
+		url += (/\?/.test( url ) ? "&" : "?") + "callback=" + id;
+
+		window[id] = (function(callback,id,data){
+			callback.call(this,data);
+			document.head.removeChild(document.querySelector("#" + id));
+			delete window[id];
+		}).bind(this,callback,id); 
+
+		script.type = "text/javascript";  
+		script.id = id;
+		script.src = url;  
+		head.appendChild(script);
 	},
 	nav: function() {
 		var self = this;
@@ -216,25 +238,34 @@ Speech.prototype = {
 			case "maps":
 				script.src = "http://maps.googleapis.com/maps/api/js?sensor=true&key=" + key;
 				break;
+			case "other":
+				script.src = key;
+				break;
 		}
 		document.body.appendChild(script);
-	}
-	/*,
-	twitter: function(config) {
-		if (!config.query) {
+	},
+	twitter: function(options) {
+		options = options || {};
+		if (!options.query) {
 			this.error(3);
 			return;
 		}
-		Speech.prototype.nav();
-		this.ajax({
-			url: "http://search.twitter.com/search.json?include_entities=true&rpp=" + ((config.max).toString() || (10).toString()) + "&q=" + config.query + ( !! (this.geo && config.nav) ? "&geocode=" + this.geo + "," + config.radius || "2km" : ""),
-			method: "GET",
-			callback: function(data) {
-				console.log(data);
-				//config.callback(data);
-			}
+		this.twitter.callback = options.callback || function(){
+			this.error(6);
+		};
+		var url = "http://search.twitter.com/search.json?include_entities=true&rpp=" + ((options.max).toString() || (10).toString()) + "&q=" + options.query + (!!(this.geo && options.nav) ? "&geocode=" + this.geo + "," + options.radius || "2km" : "");
+		this.jsonp(url,function(data){
+			this.twitter.callback.call(this,data);
 		});
-	}*/
+	},
+	randomString: function(length){
+		var string = [];
+		for (var i = 0; i < length; i++) {
+			var type = (i%2 == 0)?97:65;
+			string[i] = String.fromCharCode(type + Math.round(Math.random() * 25));
+		};
+		return string.join("");
+	}
 };
 
 Speech.prototype.ajax.parse = function(data) {
@@ -242,9 +273,7 @@ Speech.prototype.ajax.parse = function(data) {
 		JSON.parse(data);
 	} catch (e) {
 		return data;
-
 	}
 	return JSON.parse(data);
 
 };
-
