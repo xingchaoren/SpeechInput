@@ -24,7 +24,7 @@ Speech.prototype = {
 				var self = this;
 				for (var i = 0; i < this.target.length; i++) {
 					self.event(this.target[i],callback,self);
-				};
+				}
 				break;
 			case 'error':
 				this.onerror = callback(type,code);
@@ -61,8 +61,8 @@ Speech.prototype = {
 		};
 	},
 	ajax: function(config) {
-		config.callback = config.callback ||
-		function() {
+		var self = this;
+		config.callback = config.callback || function() {
 			console.log("Error: No callback specified");
 		};
 		if (!(/(GET|POST|HEAD)/i.test(config.method))) {
@@ -74,28 +74,30 @@ Speech.prototype = {
 
 		xhr.onload = function(e) {
 			if (this.status == "200") {
-				config.callback(Speech.prototype.ajax.parse(this.response));
+				config.callback.call(self,Speech.prototype.ajax.parse(this.response));
 			}
 		};
 		xhr.onerror = function() {
 			console.log("Error while loading url:" + config.url);
-			Speech.prototype.error(2);
+			self.error.call(self,2);
 		};
 
 		xhr.send();
 	},
 	nav: function() {
+		var self = this;
 		if ('geolocation' in window.navigator){
 			navigator.geolocation.getCurrentPosition(function(position) {
-				this.geo = (position.coords.latitude.toString() + "," + position.coords.longitude.toString());
+				self.geo = (position.coords.latitude.toString() + "," + position.coords.longitude.toString());
 			}, function(error) {
-				this.geo = null;
+				self.geo = null;
+				self.error(5);
 			});
 		} else {
-			Speech.prototype.geo = null;
-			this.error(4);
+			self.geo = null;
+			self.error(4);
 		}
-		return Speech.prototype.geo;
+		return this.geo;
 	},
 	facebook: function(config) {
 		if (!config.query) {
@@ -163,49 +165,59 @@ Speech.prototype = {
 		});
 	},
 	youtube: function(options) {
-		var options = options || {};
-		if (!'query' in options) {
+		options = options || {};
+		if (!('query' in options)) {
 			this.error(3);
 			return;
 		}
-		this.ajax({
+		this.ajax.call(this,{
 			url: "https://gdata.youtube.com/feeds/api/videos?alt=json&q=" + options.query + "&max-results=" + ((options.max).toString() || (10).toString()),
 			method: "GET",
-			callback: function(data) {
-				var YoutubeData = [];
-				if ( !! data.feed.entry) {
-					data.feed.entry.forEach(function(entry, i) {
-						YoutubeData[i] = {};
+			callback: function(result) {
+				var data = [];
+				if (!!result.feed.entry) {
+					result.feed.entry.forEach(function(entry, i) {
+						data[i] = {};
 						var properties = ['title','description','author','url','category','rating','viewCount'];
-						var link = ['media$group.media$title.$t','media$group.media$description.$t','author[0].name.$t','media$group.media$content[0].url','media$group.media$category[0].$t','gd$rating.average','yt$statistics.viewCount']
+						var link = ['media$group.media$title.$t','media$group.media$description.$t','author[0].name.$t','media$group.media$content[0].url','media$group.media$category[0].$t','gd$rating.average','yt$statistics.viewCount'];
 						for (var x = 0; x < properties.length; x++){
 							try {
-								YoutubeData[i][properties[x]] = eval('entry.' + link[x]);
+								data[i][properties[x]] = eval('entry.' + link[x]);
 							} catch(e){
-								delete YoutubeData[i][properties[x]];
+								delete data[i][properties[x]];
 								continue;
 							}
-						};
-						YoutubeData[i].thumbnail = (function(){
+						}
+						data[i].thumbnail = (function(){
 							var array = [];
 							if("media$group" in entry && typeof(entry.media$group.media$thumbnail) !== 'undefined'){
 								entry.media$group.media$thumbnail.forEach(function(self,i){
-									array[i] = self.url
+									array[i] = self.url;
 								});
 								return array;
 							} else {
-								delete YoutubeData[i].thumbnail;
+								delete data[i].thumbnail;
 								return;
 							}
 						})();
 					});
 
-					options.callback(YoutubeData);
+					options.callback(data);
 				} else {
-					Speech.prototype.error(1);
+					this.error(1);
 				}
 			}
 		});
+	},
+	key:function(service,key){
+		var script = document.createElement("script");
+		script.type = "text/javascript";
+		switch(service){
+			case "maps":
+				script.src = "http://maps.googleapis.com/maps/api/js?sensor=true&key=" + key;
+				break;
+		}
+		document.body.appendChild(script);
 	}
 	/*,
 	twitter: function(config) {
@@ -235,3 +247,4 @@ Speech.prototype.ajax.parse = function(data) {
 	return JSON.parse(data);
 
 };
+
